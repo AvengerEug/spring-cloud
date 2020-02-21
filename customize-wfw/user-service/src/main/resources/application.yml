@@ -1,9 +1,7 @@
-server:
-  port: 6000
-
 spring:
   application:
-    name: order-service
+    name: user-service
+
 
 eureka:
   client:
