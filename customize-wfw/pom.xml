@@ -16,6 +16,8 @@
         <module>order-service</module>
         <module>customize-common</module>
         <module>eureka</module>
+        <module>eureka8001</module>
+        <module>eureka8002</module>
     </modules>
 
     <dependencies>
