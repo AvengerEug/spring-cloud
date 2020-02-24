@@ -201,6 +201,16 @@
   
 * ribbon一共有7个负载均衡策略，但是默认使用的是轮询策略。
 
+  具体默认七个负载均衡策略如下:
+
+  1. RoundRobinRule:  轮询策略，默认这种策略
+  2. RandomRule: 随机策略服务，
+  3. AvailabilityFilteringRule: 会先过滤掉由于多次访问故障而处于断路器跳闸状态的服务、还有并发的链接数量超过阈值的服务，然后对剩余的服务按照轮询策略进行选取
+  4. WeightedResponseTimeRule: 根据平均响应时间计算所有服务的权重，响应越快服务权重越大。刚启动时如果统计信息不足，则使用RoundRobinRule(轮询)策略，等统计信息足够后，会切换到WeightedResponseTimeRule
+  5. RetryRule: 先按照RoundRobinRule的策略获取服务，如果获取服务失败则在指定时间内会重试，再获取不到则放弃
+  6. BestAvalableRule:  会先过滤掉由于多次访问故障而处于断路器跳闸状态的服务，然后选择一个并发量最小的服务
+  7. ZoneAvoidanceRule: 默认规则，符合判断server所在区域的性能和server的可用性选择服务
+
 * 客户端负载均衡和服务端负载均衡的区别:
 
   1. 服务端负载均衡是我不知道我具体要请求哪一个实例，由负载均衡代理服务器决定
