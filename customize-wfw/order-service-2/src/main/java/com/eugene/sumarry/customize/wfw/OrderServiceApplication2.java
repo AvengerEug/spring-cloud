@@ -2,13 +2,13 @@ package com.eugene.sumarry.customize.wfw;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.cloud.netflix.eureka.server.EnableEurekaServer;
+import org.springframework.cloud.netflix.eureka.EnableEurekaClient;
 
 @SpringBootApplication
-@EnableEurekaServer
-public class Eureka8002Application {
+@EnableEurekaClient
+public class OrderServiceApplication2 {
 
     public static void main(String[] args) {
-        SpringApplication.run(Eureka8002Application.class, args);
+        SpringApplication.run(OrderServiceApplication2.class);
     }
 }

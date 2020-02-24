@@ -15,7 +15,7 @@ public class OrderController {
     @GetMapping("/index")
     public Message getOrders() {
         Map<String, Object> map = new HashMap<>();
-        map.put("orders", "order1");
+        map.put("orders", "order2");
 
         return Message.ok(map);
     }

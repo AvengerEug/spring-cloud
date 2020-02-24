@@ -171,3 +171,38 @@
   同的区域(比如机器A在中国北京，机器B在美国洛杉矶)，而他们要通行，难免避免不了网络问题而导致的通信失败。
   
 * C(一致性)和A(可用性)的矛盾:  如要保证一致性，那么必然会存在所有服务暂停使用的情况。这与可用性矛盾了。
+
+## 四、使用ribbon组件实现负载均衡
+* 使用ribbon组件实现负载均衡需要依赖于RestTemplate对象, 即使用@LoadBalance注解来标识这个bean要使用负载均衡
+  具体步骤如下:
+  
+  1. 使用@LoadBalance标识RestTemplate对象
+  
+     ```java
+     /**
+      * @LoadBalanced 注解表示此restTemplate使用负载均衡
+      * 使用到了ribbon组件，ribbon组件不需要重复依赖，因为eureka已经依赖了他们
+      * @return
+      */
+     @Bean
+     @LoadBalanced
+     public RestTemplate restTemplate() {
+         return new RestTemplate();
+     }
+     ```
+  
+  2. 使用http方式调用另外一个微服务，假设有订单模块且清单模块做了集群，一共有两个实例。且他们的服务名都叫`order-service`.  所以在使用reetTemplate进行http调用时，只需要填写服务名即可，不需要填写端口，如下:
+  
+     ```java
+     http://order-service/v1/get-orders
+     ```
+  
+     具体执行流程为: 在请求order-service服务之前，会先从rureka中得知我具体要用哪一个实例，即得到实例的ip和端口，最终进行具体的调用
+  
+* ribbon一共有7个负载均衡策略，但是默认使用的是轮询策略。
+
+* 客户端负载均衡和服务端负载均衡的区别:
+
+  1. 服务端负载均衡是我不知道我具体要请求哪一个实例，由负载均衡代理服务器决定
+  2. 客户端负载均衡时我知道具体要请求哪一个实例
+  3. 其实就是正向代理和反向代理的区别

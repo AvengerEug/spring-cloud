@@ -11,7 +11,7 @@ eureka:
   client:
     service-url:
       # 服务端暴露的注册中心url
-      defaultZone: http://eureka8000.com:8000/eureka,http://eureka8001.com:8001/eureka,http://eureka8002.com:8002/eureka
+      defaultZone: http://localhost:8000/eureka
   instance:
     instance-id: order-service-1 # 注册到eureka的唯一实例ID
     prefer-ip-address: true # 配置显示ip地址
