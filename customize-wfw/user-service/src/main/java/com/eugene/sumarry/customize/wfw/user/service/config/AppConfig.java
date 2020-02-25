@@ -1,5 +1,8 @@
 package com.eugene.sumarry.customize.wfw.user.service.config;
 
+import com.eugene.sumarry.customize.wfw.user.service.loadbalance.SecondRuleForLoadBalance;
+import com.netflix.loadbalancer.IRule;
+import com.netflix.loadbalancer.RoundRobinRule;
 import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.context.annotation.Bean;
@@ -21,6 +24,10 @@ public class AppConfig {
         return new RestTemplate();
     }
 
+    @Bean
+    public IRule secondRuleForLoadBalance() {
+        return new SecondRuleForLoadBalance();
+    }
 
     @Bean
     public TomcatServletWebServerFactory tomcatServletWebServerFactory() {
