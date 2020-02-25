@@ -1,8 +1,7 @@
 package com.eugene.sumarry.customize.wfw.user.service.loadbalance;
 
-import com.netflix.client.config.IClientConfig;
-import com.netflix.loadbalancer.AbstractLoadBalancerRule;
 import com.netflix.loadbalancer.ILoadBalancer;
+import com.netflix.loadbalancer.IRule;
 import com.netflix.loadbalancer.Server;
 import org.springframework.stereotype.Component;
 
@@ -11,7 +10,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Component
-public class SecondRuleForLoadBalance extends AbstractLoadBalancerRule {
+public class SecondRuleForLoadBalance implements IRule {
+
+    private ILoadBalancer iLoadBalancer;
 
     private Vector<Server> resetServers;
 
@@ -96,7 +97,13 @@ public class SecondRuleForLoadBalance extends AbstractLoadBalancerRule {
     }
 
     @Override
-    public void initWithNiwsConfig(IClientConfig clientConfig) {
-
+    public void setLoadBalancer(ILoadBalancer iLoadBalancer) {
+        this.iLoadBalancer = iLoadBalancer;
     }
+
+    @Override
+    public ILoadBalancer getLoadBalancer() {
+        return iLoadBalancer;
+    }
+
 }

@@ -203,7 +203,7 @@
 
   具体默认七个负载均衡策略如下:
 
-  1. RoundRobinRule:  轮询策略，默认这种策略
+  1. RoundRobinRule:  轮询策略，默认这种策略(我debug时，没有进这个方法，所以默认是不是这个策略需要确认)
   2. RandomRule: 随机策略服务，
   3. AvailabilityFilteringRule: 会先过滤掉由于多次访问故障而处于断路器跳闸状态的服务、还有并发的链接数量超过阈值的服务，然后对剩余的服务按照轮询策略进行选取
   4. WeightedResponseTimeRule: 根据平均响应时间计算所有服务的权重，响应越快服务权重越大。刚启动时如果统计信息不足，则使用RoundRobinRule(轮询)策略，等统计信息足够后，会切换到WeightedResponseTimeRule
@@ -216,3 +216,29 @@
   1. 服务端负载均衡是我不知道我具体要请求哪一个实例，由负载均衡代理服务器决定
   2. 客户端负载均衡时我知道具体要请求哪一个实例
   3. 其实就是正向代理和反向代理的区别
+
+## 五、实现自定义负载均衡策略
+
+### 5.1 实现步骤
+
+1. 实现IRule接口, 并重写里面的方法。 它会要求你内部维护一个**ILoadBalancer**类型的对象, 该对象在spring实例化时会将此对象自动装配进去。**ILoadBalancer**类型的对象维护了注册到服务的所有信息。
+
+   接口信息如下:
+
+   ```java
+   public interface IRule{
+   
+       public Server choose(Object key);
+       
+       public void setLoadBalancer(ILoadBalancer lb);
+       
+       public ILoadBalancer getLoadBalancer();    
+   }
+   ```
+
+2. 将负载均衡的逻辑全部写在**choose**方法中，可以根据自己的逻辑来实现决定具体返回哪一个server。
+
+3. 具体实现逻辑参考: [Git项目: https://github.com/AvengerEug/spring-cloud customize-loadbalance分支代码](https://github.com/AvengerEug/spring-cloud)
+
+### 5.2原理
+
