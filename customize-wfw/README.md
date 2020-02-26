@@ -242,3 +242,126 @@
 
 ### 5.2原理
 
+1. 进入类**LoadBalanced**, 查看哪个地方用了这个类(eclipse 快捷键: ctrl + alt + f7), 易发现有类**LoadBalancerAutoConfiguration**, 其中很容易发现，此bean中维护了一个泛型为**RestTemplate**的list，并有@Autowired注解修饰。 所以可知，在这个bean中维护了并值一个list，里面存放了所有的**RestTemplate**。但会自动注入所有持有@LoadBalanced注解的RestTemplate的bean
+
+2. 在此**LoadBalancerAutoConfiguration**类中，会根据项目中存在哪个bean而产生具体的bean。
+
+   * 若项目中缺失这个类**org.springframework.retry.support.RetryTemplate**, 那么将处理这个**LoadBalancerInterceptorConfig**类内部的@Bean方法
+   * 若项目中存在这个类**org.springframework.retry.support.RetryTemplate**，那么将处理**RetryAutoConfiguration**和**RetryInterceptorAutoConfiguration**类中的bean。
+
+   根据spring-cloud **Finchley.SR2**版本，处理的是**LoadBalancerInterceptorConfig**类中的bean。最终在restTemplateCustomizer方法中，针对所有的restTemplate添加了一个拦截器**loadBalancerInterceptor**. 
+
+3. 在使用restTemplate发送请求时，首先要获取一个ClientHttpRequest(AbstractClientHttpRequest)， 并执行execute方法。在AbstractClientHttpRequest内部再执行executeInternal方法，此方法是一个抽象方法，最终在子类InterceptingClientHttpRequest中执行，最终再执行内部类InterceptingRequestExecution的execute方法。最终拿到外部类(InterceptingClientHttpRequest)的interceptors，并执行对应的intercept方法(只会执行第一个，因为只获取到了迭代器的next，并没有循环获取)。而这个intercept就是**LoadBalancerInterceptor**, 最终在这个**LoadBalancerInterceptor**的RibbonLoadBalancerClient的execute方法，并根据负载均衡策略拿到具体的服务，并请求具体的服务
+
+4. 那么问题来了: 上述的AbstractClientHttpRequest类中的interceptors拦截器是什么时候被设置进去的呢？同理，在eclispe中按ctrl  + alt + f7来查看使用到它的地方。然后发现它在InterceptingClientHttpRequestFactory类中被手动new的，并将interceptors传进去。所以现在再来看看InterceptingClientHttpRequestFactory类中的interceptors是什么时候被填充进去的呢？看了下InterceptingClientHttpRequestFactory类，发现它有一个带参构造方法，而参数就是interceptors。所以现在看下这个带参构造方法是什么时候被调用的。同理，按ctrl + alt + f7。按照这样的思路，最终发现它就是在**LoadBalancerAutoConfiguration**类中处理RestTemplateCustomizer这个bean时，调用了restTemplate的setInterceptors方法，将所有的拦截器都添加进去了
+
+   ```java
+   @Bean
+   @ConditionalOnMissingBean
+   public RestTemplateCustomizer restTemplateCustomizer(
+         final LoadBalancerInterceptor loadBalancerInterceptor) {
+      return restTemplate -> {
+                 List<ClientHttpRequestInterceptor> list = new ArrayList<>(
+                         restTemplate.getInterceptors());
+                 list.add(loadBalancerInterceptor);
+                 restTemplate.setInterceptors(list);
+             };
+   }
+   ```
+
+   但是，返回的仅仅是一个对象，传入的restTemplate是一个参数。所以我们要定位什么时候调用了RestTemplateCustomizer的customize方法。同上，使用ctrl + alt + f7快捷键。最终发现在**LoadBalancerAutoConfiguration**类的loadBalancedRestTemplateInitializerDeprecated()方法被调用了。但是这个方法返回的也是一个对象
+
+   ```java
+   @Bean
+   public SmartInitializingSingleton loadBalancedRestTemplateInitializerDeprecated(
+         final ObjectProvider<List<RestTemplateCustomizer>> restTemplateCustomizers) {
+      return () -> restTemplateCustomizers.ifAvailable(customizers -> {
+              for (RestTemplate restTemplate : LoadBalancerAutoConfiguration.this.restTemplates) {
+                  for (RestTemplateCustomizer customizer : customizers) {
+                      customizer.customize(restTemplate);
+                  }
+              }
+          });
+   }
+   ```
+
+   , 我们还要看什么时候调用了SmartInitializingSingleton接口的afterSingletonsInstantiated方法。熟悉spring源码的人就会知道，此接口会在spring 完成所有bean的创建后，会统一调用SmartInitializingSingleton接口的afterSingletonsInstantiated方法，具体方法如下
+
+   ```java
+   // DefaultListableBeanPostProcessor.java
+   // preInstantiateSingletons() 方法
+   // Trigger post-initialization callback for all applicable beans...
+   for (String beanName : beanNames) {
+      Object singletonInstance = getSingleton(beanName);
+      if (singletonInstance instanceof SmartInitializingSingleton) {
+         final SmartInitializingSingleton smartSingleton = (SmartInitializingSingleton) singletonInstance;
+         if (System.getSecurityManager() != null) {
+            AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
+               smartSingleton.afterSingletonsInstantiated();
+               return null;
+            }, getAccessControlContext());
+         }
+         else {
+            smartSingleton.afterSingletonsInstantiated();
+         }
+      }
+   }
+   ```
+
+5. 所以最终的大致流程就是: 在springboot启动项目后，加载spring.factories文件，开始处理**org.springframework.boot.autoconfigure.EnableAutoConfiguration**指定的自动装配类，其中包括LoadBalancerAutoConfiguration类，最终在满足创建这个bean的条件时，开始创建这个bean, 最终将加了@LoadBalance注解的RestTemplate的bean注入到此类中的restTemplates属性中。同时，将此类中维护的下述的bean也创建出来。
+
+   ```java
+   @Bean
+   public SmartInitializingSingleton loadBalancedRestTemplateInitializerDeprecated(
+         final ObjectProvider<List<RestTemplateCustomizer>> restTemplateCustomizers) {
+      return () -> restTemplateCustomizers.ifAvailable(customizers -> {
+              for (RestTemplate restTemplate : LoadBalancerAutoConfiguration.this.restTemplates) {
+                  for (RestTemplateCustomizer customizer : customizers) {
+                      customizer.customize(restTemplate);
+                  }
+              }
+          });
+   }
+   ```
+
+   ```java
+   /**
+    LoadBalancerInterceptor类型的参数，spring在调用这个方法时，会自动填充进去
+   **/
+   @Bean
+   @ConditionalOnMissingBean
+   public RestTemplateCustomizer restTemplateCustomizer(
+         final LoadBalancerInterceptor loadBalancerInterceptor) {
+      return restTemplate -> {
+                 List<ClientHttpRequestInterceptor> list = new ArrayList<>(
+                         restTemplate.getInterceptors());
+                 list.add(loadBalancerInterceptor);
+                 restTemplate.setInterceptors(list);
+             };
+   }
+   ```
+
+   最终在spring完成所有bean创建后再统一处理SmartInitializingSingleton类型的方法，所以此刻会执行上述第一个方法的返回值的方法，即里面的lamda表达式
+
+   ```java
+   () -> restTemplateCustomizers.ifAvailable(customizers -> {
+       for (RestTemplate restTemplate : LoadBalancerAutoConfiguration.this.restTemplates) {
+           for (RestTemplateCustomizer customizer : customizers) {
+               customizer.customize(restTemplate);
+           }
+       }
+   })
+   ```
+
+   最终在执行到customizer.customize(restTemplate)时，执行的就是上述第二个方法的lamda表达式
+
+   ```java
+   restTemplate -> {
+       List<ClientHttpRequestInterceptor> list = new ArrayList<>(
+       restTemplate.getInterceptors());
+       list.add(loadBalancerInterceptor);
+       restTemplate.setInterceptors(list);
+   }
+   ```
+
+   最终完成了将所有的拦截器set到restTemplate中去的功能。
