@@ -31,5 +31,16 @@
   **
 
 ## 一、自定义微服务模块 customize-wfw
+### 1.1 地址
+
 * [https://github.com/AvengerEug/spring-cloud/tree/develop/customize-wfw](https://github.com/AvengerEug/spring-cloud/tree/develop/customize-wfw)
+
+### 1.2 各服务端口汇总
+
+|       服务名        |   端口    |
+| :-----------------: | :-------: |
+|       eureka        |   8000    |
+|    user-service     |   5000    |
+| order-service(集群) | 6000/6001 |
+| goods-service(集群) | 7000/7001 |
 
