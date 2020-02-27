@@ -44,3 +44,106 @@
 | order-service(集群) | 6000/6001 |
 | goods-service(集群) | 7000/7001 |
 
+### 1.3 每个服务实现自己的负载均衡策略功能实现步骤
+
+* 背景:
+
+  ```
+  假设有两个微服务，分别为order和goods。并且它们都集群部署了。 现在要在user服务中调用order和goods服务的api，要实现对order服务实现自定义的负载均衡算法: `每个实例被连续调用两次后再轮询到另外一个实例`。goods服务要使用普通的轮询算法: `即每个服务调用一次后就轮到其他实例`
+  ```
+
+* 实现步骤:
+
+  1. 新建两个类，里面分别维护了两个**IRule**类型的对象。eg，如下:
+
+     ```java
+     // OrderServiceLoadBalance.java
+     @Configuration
+     public class OrderServiceLoadBalance {
+     
+         @Bean
+         public IRule orderServiceLoadBalanceRule() {
+             return new SecondRuleForLoadBalance();
+         }
+     
+     }
+     ```
+
+      
+
+     ```java
+     // UserServiceLoadBalance.java
+     @Configuration
+     public class UserServiceLoadBalance {
+     
+         @Bean
+         public IRule userServiceLoadBalanceRule() {
+             return new RoundRobinRule();
+         }
+     }
+     ```
+
+     `注意事项: `
+
+     ```markdown
+     1. 维护负载均衡对象的类必须是一个`@Configuration`注解标识的类
+     2. 此对象不能被springboot项目扫描得到。即不能在springboot启动类所在包及其子包下。若扫描到的话，在进行微服务调用时会抛异常(大致的异常就是IRule对象会被其他对象依赖，会根据类型自动注入，但是因为被扫描到了，所以有多个相同类型的对象，spring不知道注入哪一个，所以抛了异常)
+     ```
+
+  2. 添加如下自定义注解:
+
+     ```java
+     @Target(ElementType.TYPE)
+     @Retention(RetentionPolicy.RUNTIME)
+     @ComponentScan(excludeFilters = {
+             @ComponentScan.Filter(type = FilterType.REGEX, pattern = Constants.USER_SERVICE_EXCLUDE_PACKAGE)
+     })
+     @RibbonClients({
+             @RibbonClient(name = "ORDER-SERVICE", configuration = OrderServiceLoadBalance.class),
+             @RibbonClient(name = "USER-SERVICE", configuration = UserServiceLoadBalance.class)
+     })
+     public @interface EnableCustomizeLoadBalance {
+     }
+     ```
+
+     注意事项: 
+
+     ```markdown
+     1. Constants.USER_SERVICE_EXCLUDE_PACKAGE的值就是手写loadBalance算法类以及上述维护两个@Configureation注解标识的类所在的包
+     2. 这个注解的@ComponentScan注解将Constants.USER_SERVICE_EXCLUDE_PACKAGE所在包下的所有类给剔除了，不会被扫描到。
+     3. @RibbonClients注解表示具体维护要调用的负载均衡策略。如上，服务名叫"ORDER-SERVICE"的服务名的负载均衡算法使用OrderServiceLoadBalance类中维护的IRule类型的对象，其中ORDER-SERVICE这个值就是order模块中注册到eureka的服务名，就是order模块中配置文件为spring.application.name的值
+     ```
+
+  3. 启动自定义负载均衡算法功能, 在user模块中添加@EnableCustomizeLoadBalance注解，如下:
+
+     ```java
+     @EnableCustomizeLoadBalance
+     @SpringBootApplication
+     @EnableEurekaClient
+     public class UserServiceApplication {
+     
+         public static void main(String[] args) {
+             SpringApplication.run(UserServiceApplication.class);
+         }
+     }
+     ```
+
+     注意事项: 
+
+     ```markdown
+     1. @EnableCustomizeLoadBalance注解必须要写在@SpringBootApplication注解上面。若写在下面，则@EnableCustomizeLoadBalance注解中的过滤扫描包的功能会不起作用。则会抛上述所说的异常。具体原因待研究。
+     2. 若单独将@EnableCustomizeLoadBalance注解中的@ComponentScan和@RibbonClients注解内容直接搬到UserServiceApplication类中，那么久不会出现上述所说的异常，具体原因待研究。
+     ```
+
+  4. 至此，不同微服务使用不同的负载均衡算法的功能点完成。可以使用如下url进行测试:
+
+     ```tex
+     1. http://localhost:5000/v1/users/get-goods  -> user服务调用goods服务api。
+        结果: 一次显示goods1。另外一次显示goods。然后轮询显示 => 用的是默认轮询算法
+     2. http://localhost:5000/v1/users/get-orders  -> user服务调用order服务api
+        结果: 两次显示goods2。两次显示goods1。然后轮询显示  => 用的是自定义的轮询算法
+     ```
+
+  5. 最后，因为spring cloud中具有负载均衡功能的组件是ribbon，而ribbon的负载均衡架构是cs模式。所以我们做的负载均衡策略都是写在cs端。就当前demo而言，因为user要调用order和goods服务的api，所以user就相当于是client端。所以要将这些配置加在user这个模块中
+
+  6. [参考官网url:https://cloud.spring.io/spring-cloud-static/Finchley.SR4/single/spring-cloud.html#_customizing_the_ribbon_client](https://cloud.spring.io/spring-cloud-static/Finchley.SR4/single/spring-cloud.html#_customizing_the_ribbon_client)

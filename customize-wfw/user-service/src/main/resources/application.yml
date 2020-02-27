@@ -4,7 +4,6 @@ spring:
     # 以后的服务调用，是通过这个服务名来调用的
     name: user-service
 
-
 eureka:
   client:
     service-url:
