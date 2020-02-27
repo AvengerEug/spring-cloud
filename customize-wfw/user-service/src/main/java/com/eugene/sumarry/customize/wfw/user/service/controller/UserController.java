@@ -24,6 +24,8 @@ public class UserController {
     // 然后知道具体使用哪一个实例的ip和端口进行访问
     private static final String ORDER_SERVICE_NAME = "ORDER-SERVICE";
 
+    private static final String GOODS_SERVICE_NAME = "GOODS-SERVICE";
+
     @Autowired
     private RestTemplate restTemplate;
 
@@ -39,5 +41,11 @@ public class UserController {
     @GetMapping("/get-orders")
     public Message getOrders() {
         return Message.ok(restTemplate.getForObject("http://" + ORDER_SERVICE_NAME +"/v1/orders/index", Object.class));
+    }
+
+    @GetMapping("/get-goods")
+    public Message getGoods() {
+        return Message.ok(restTemplate.getForObject("http://" + GOODS_SERVICE_NAME +"/v1/goods/index", Object.class));
+
     }
 }

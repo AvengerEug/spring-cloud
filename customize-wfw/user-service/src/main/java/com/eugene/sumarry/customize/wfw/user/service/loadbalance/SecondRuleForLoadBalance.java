@@ -12,6 +12,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Component
 public class SecondRuleForLoadBalance implements IRule {
 
+    private Server preServer;
+
     private ILoadBalancer iLoadBalancer;
 
     private Vector<Server> resetServers;
@@ -39,21 +41,35 @@ public class SecondRuleForLoadBalance implements IRule {
         ILoadBalancer loadBalancer = getLoadBalancer();
         List<Server> allServers = loadBalancer.getAllServers();
 
+        if (serverCalledInfos.size() != 0) {
+            serverCalledInfos.clear();
+        }
+
         // 为所有的server初始化被调用的数据次数
         for (Server server : allServers) {
             serverCalledInfos.put(server, new AtomicInteger(0));
         }
     }
 
+    private void resetServerCalledInfos() {
+        this.initServerCalledInfos();
+    }
+
+    private void resetResetServers() {
+        this.initResetServers();
+    }
+
+    private boolean isPreServerLoadBalance(ILoadBalancer loadBalancer) {
+        return loadBalancer.getAllServers().contains(preServer);
+    }
+
 
     private Server choose(ILoadBalancer loadBalancer, Object key) {
 
-        // 在此处进行重新构建集合，因为服务的数量是动态变化的
-        if (loadBalancer.getAllServers().size() != serverCalledInfos.size()) {
-            // 重置存储被调用服务信息集合
-            initServerCalledInfos();
-            // 重置存储重置处理服务集合
-            initResetServers();
+        if (preServer == null || !isPreServerLoadBalance(loadBalancer)) {
+            // 重置当前服务对应的服务信息
+            resetServerCalledInfos();
+            resetResetServers();
         }
 
         Server server = null;
@@ -80,9 +96,11 @@ public class SecondRuleForLoadBalance implements IRule {
 
         // 如果重置过的server 集合长度和被调用的服务数量一致，那么所有服务的轮询都结束了，重新调用
         if (resetServers.size() == serverCalledInfos.size()) {
-            resetServers.clear();
+            resetResetServers();
             return choose(loadBalancer, key);
         }
+
+        preServer = server;
 
         return server;
     }

@@ -17,6 +17,8 @@
         <module>customize-common</module>
         <module>eureka</module>
         <module>order-service-2</module>
+        <module>goods-service</module>
+        <module>goods-service-2</module>
     </modules>
 
     <dependencies>

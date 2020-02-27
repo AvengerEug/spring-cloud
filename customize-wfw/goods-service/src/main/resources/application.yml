@@ -1,0 +1,21 @@
+server:
+  port: 7000
+
+spring:
+  application:
+    # 应用的名称，eureka会把这个名称当成实例名称，若实例名称都一致，则eureka会当作集群处理
+    # 以后的服务调用，是通过这个服务名来调用的
+    name: goods-service
+
+eureka:
+  client:
+    service-url:
+      # 服务端暴露的注册中心url
+      defaultZone: http://localhost:8000/eureka
+  instance:
+    instance-id: goods-service-1 # 注册到eureka的唯一实例ID
+    prefer-ip-address: true # 配置显示ip地址
+    #设置客户端发送心跳给eureka服务器的时间间隔，默认30s
+    lease-renewal-interval-in-seconds: 1
+    # 若客户端在3s内没有发送心跳给eureka，那么就表示此客户端宕机了, 在eureka进行清理服务时就能把这个服务给剔除了
+    lease-expiration-duration-in-seconds: 3
