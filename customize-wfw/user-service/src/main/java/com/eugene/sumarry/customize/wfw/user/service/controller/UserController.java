@@ -1,6 +1,7 @@
 package com.eugene.sumarry.customize.wfw.user.service.controller;
 
 import com.eugene.sumarry.customize.wfw.model.Message;
+import com.eugene.sumarry.customize.wfw.user.service.feign.OrderFeignClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,12 +30,20 @@ public class UserController {
     @Autowired
     private RestTemplate restTemplate;
 
+    @Autowired
+    private OrderFeignClient orderFeignClient;
+
     @GetMapping("/index")
     public Message getUsers() {
         Map<String, Object> map = new HashMap<>();
         map.put("users", "users");
 
         return Message.ok(map);
+    }
+
+    @GetMapping("/get-feign-orders")
+    public Message getFeignOrders() {
+        return orderFeignClient.getOrders();
     }
 
 

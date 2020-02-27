@@ -147,3 +147,61 @@
   5. 最后，因为spring cloud中具有负载均衡功能的组件是ribbon，而ribbon的负载均衡架构是cs模式。所以我们做的负载均衡策略都是写在cs端。就当前demo而言，因为user要调用order和goods服务的api，所以user就相当于是client端。所以要将这些配置加在user这个模块中
 
   6. [参考官网url:https://cloud.spring.io/spring-cloud-static/Finchley.SR4/single/spring-cloud.html#_customizing_the_ribbon_client](https://cloud.spring.io/spring-cloud-static/Finchley.SR4/single/spring-cloud.html#_customizing_the_ribbon_client)
+  
+* 1.4 使用feign组件代替restTemplate来进行服务间调用
+
+  1. 什么是feign?
+
+     ```text
+     Feign是一个声明式webservice的客户端。spring对这个组件进行了封装，使用方式和spring mvc的api接口定义方式类似。它可以与eureka、ribbon结合，与它们集成后feign能使用ribbon的负载均衡策略
+     ```
+
+  2. feign能干什么？
+
+     ```reStructuredText
+     spring cloud中微服务的调用方式是采用http的形式来执行的。所以我们需要编写http请求方面的代码。当微服务之间交互比较多时，就需要编写很多的重复代码。而feign类似于mybatis的接口，不需要实现类，只需要接口即可。底层使用代理的技术将http请求操作给封装了。我们只需要按照spring修改后的规则进行编写，就能实现api的调用
+     ```
+
+  3. 如何使用？
+
+     1. 添加feign依赖(不同版本的spring cloud可能会出现依赖包artifactid不一致问题，具体可参考官网, Finchley.SR2版本依赖的feign的artifactid为)
+
+        ```xml
+        <dependency>
+        	<groupId>org.springframework.cloud</groupId>
+        	<artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>    
+        ```
+
+     2. 在项目入口处添加@EnableFeignClients注解
+
+     3. 编写接口，实现对具体服务的请求api。eg，user模块中编写要调用order模块的client
+
+        ```java
+        @FeignClient("ORDER-SERVICE")
+        public interface OrderFeignClient {
+        
+        
+            @GetMapping("/v1/orders/index")
+            Message getOrders();
+        }
+        ```
+
+     4. 调用接口
+
+        从spring容器中获取到orderFeignClient这个bean，或者自己自动装配到一个controller中。最终直接调用这个bean的getOrders方法即可。 feign会发送 http://ORDER-SERVICE/v1/orders/index 这个api。最终请求到order模块对应的api。eg:
+
+        ```java
+        @RestController
+        @RequestMapping("/v1/users")
+        public class UserController {
+        	@Autowired
+            private OrderFeignClient orderFeignClient;
+            
+            @GetMapping("/get-feign-orders")
+            public Message getFeignOrders() {
+                return orderFeignClient.getOrders();
+            }
+            
+        }
+        ```
