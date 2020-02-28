@@ -148,49 +148,50 @@
 
   6. [参考官网url:https://cloud.spring.io/spring-cloud-static/Finchley.SR4/single/spring-cloud.html#_customizing_the_ribbon_client](https://cloud.spring.io/spring-cloud-static/Finchley.SR4/single/spring-cloud.html#_customizing_the_ribbon_client)
   
-* 1.4 使用feign组件代替restTemplate来进行服务间调用
+     
+  
+### 1.4 使用feign组件代替restTemplate来进行服务间调用
 
   1. 什么是feign?
-
+  
      ```text
      Feign是一个声明式webservice的客户端。spring对这个组件进行了封装，使用方式和spring mvc的api接口定义方式类似。它可以与eureka、ribbon结合，与它们集成后feign能使用ribbon的负载均衡策略
      ```
-
+  
   2. feign能干什么？
-
+  
      ```reStructuredText
      spring cloud中微服务的调用方式是采用http的形式来执行的。所以我们需要编写http请求方面的代码。当微服务之间交互比较多时，就需要编写很多的重复代码。而feign类似于mybatis的接口，不需要实现类，只需要接口即可。底层使用代理的技术将http请求操作给封装了。我们只需要按照spring修改后的规则进行编写，就能实现api的调用
      ```
-
+  
   3. 如何使用？
-
+  
      1. 添加feign依赖(不同版本的spring cloud可能会出现依赖包artifactid不一致问题，具体可参考官网, Finchley.SR2版本依赖的feign的artifactid为)
-
+       
         ```xml
         <dependency>
         	<groupId>org.springframework.cloud</groupId>
         	<artifactId>spring-cloud-starter-openfeign</artifactId>
         </dependency>    
         ```
-
+       
      2. 在项目入口处添加@EnableFeignClients注解
-
+       
      3. 编写接口，实现对具体服务的请求api。eg，user模块中编写要调用order模块的client
-
+       
         ```java
         @FeignClient("ORDER-SERVICE")
         public interface OrderFeignClient {
-        
         
             @GetMapping("/v1/orders/index")
             Message getOrders();
         }
         ```
-
+        
      4. 调用接口
-
+       
         从spring容器中获取到orderFeignClient这个bean，或者自己自动装配到一个controller中。最终直接调用这个bean的getOrders方法即可。 feign会发送 http://ORDER-SERVICE/v1/orders/index 这个api。最终请求到order模块对应的api。eg:
-
+       
         ```java
         @RestController
         @RequestMapping("/v1/users")
@@ -205,3 +206,40 @@
             
         }
         ```
+     
+### 1.5  Hystrix(断路器)
+
+1. 什么叫Hystrix?
+
+   ```
+   官网权威说明:  https://github.com/Netflix/Hystrix/wiki#what
+   大致的意思就是: Hystrix是一个处理分布式系统的延迟和容错的开源库。在分布式系统里，许多依赖不可避免的会调用失败，比如超时、异常等。Hystrix 能够保证在一个依赖出问题的情况下，不会导致整体服务失败，避免级联故障，以提高分布式系统的弹性。
+   ```
+
+2. 有什么用？
+
+   ```
+   先描述下这样的一个场景:
+   	假设一个项目中有User模块，Order模块，goods模块。当用户下单时，先进入订单模块，但是要下订单还需要商品信息，所以还需要到goods模块中去拿商品信息，而商品信息可能还需要用户信息，所以goods模块还需要从user模块中去拿数据。 这样的下单逻辑就是一块调用链，若其中goods模块到user模块拿用户数据时，user模块因为各种原因暂时挂了(因为资源被占用完了，拿用户信息的请求线程被挂起了)，那么最终就会导致下单的逻辑一直处于进行中，导致下单页面一直在转圈圈(非单页面项目)或者页面一直没反应，停留在下单页面(单页面项目)。若此时多个用户同时执行了下单逻辑，导致所有的请求都卡到user模块这，最终就会导致order模块、user模块、goods模块全部崩掉(因为每个微服务的线程一直在等user模块返回数据，所以就挂在那里。当线程数把应用设置的最大运行内存给占满后，应用就会挂掉，最终就会导致整个微服务雪崩)。
+   	
+   Hystrix就是解决这样的问题的，它能够hold住这种情况，当微服务中的某个微服务出现问题时，不会出现这种雪崩的情况。
+   
+   这里总结下user模块出现问题的情况:
+     1. 程序出bug
+     2. 数据库正常返回
+     3. 缓存击穿、雪崩
+     4. 响应过慢
+     5. 数据库有脏数据
+     6. 等等等等
+     
+   所以Hystrix针对上述可能出现的问题提供了一套解决方案:
+     1. 方法降级: 假设有个getUser的方法出了bug，导致请求一直没有相应。这个时候就可以备份一个getUser的方法(假设getUserFallBack)，所以可以设置若getUser方法执行时间超过了多少秒就使用getUserFallBack的方法作为返回值, 或者直接抛出异常说"服务繁忙，请稍后再试".
+     2. 服务熔断: 设置一段时间内，服务未响应的次数超过指定次数(全部可以配置，默认是10s内失败20次，将会开启服务熔断)时，则将请求到此服务的请求进行方法降级处理
+     3. 服务限流: 
+     4. 请求超时监听: 请求超时监听是Hystrix 默认存在的，最终的处理方法就是方法降级来达到服务的可用性。但是它和feign一起用的时候，会出现一个bug，目前我遇到的就是它会连续call两次feign调用的方法
+     
+    注意: 方法降级和超时监听都是做到客户端的，为什么呢？因为我作为请求方我才能知道这个请求超过多少秒是我不能接受的，然后再请求对方降级的api即可。
+     
+   ```
+
+   

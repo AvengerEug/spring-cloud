@@ -19,4 +19,16 @@ public class OrderController {
 
         return Message.ok(map);
     }
+
+    @GetMapping("/get-feign-orders-time-out")
+    public Message getFeignOrdersTimeout() {
+        try {
+            // 模拟休眠5s钟
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        return Message.ok();
+    }
 }

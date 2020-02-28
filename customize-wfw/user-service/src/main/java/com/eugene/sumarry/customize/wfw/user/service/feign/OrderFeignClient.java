@@ -10,4 +10,7 @@ public interface OrderFeignClient {
 
     @GetMapping("/v1/orders/index")
     Message getOrders();
+
+    @GetMapping("/v1/orders/get-feign-orders-time-out")
+    Message getFeignOrdersTimeout();
 }

@@ -3,6 +3,8 @@ package com.eugene.sumarry.customize.wfw.user.service.loadbalance;
 import com.netflix.loadbalancer.ILoadBalancer;
 import com.netflix.loadbalancer.IRule;
 import com.netflix.loadbalancer.Server;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -11,6 +13,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @Component
 public class SecondRuleForLoadBalance implements IRule {
+
+    private Logger logger = LoggerFactory.getLogger(SecondRuleForLoadBalance.class);
 
     private Server preServer;
 
@@ -101,6 +105,8 @@ public class SecondRuleForLoadBalance implements IRule {
         }
 
         preServer = server;
+
+        logger.info("Current loadBalance service's name is {} and port is {}", server.getHost(), server.getPort());
 
         return server;
     }

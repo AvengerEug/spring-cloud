@@ -13,10 +13,28 @@ import java.util.Map;
 public class OrderController {
 
     @GetMapping("/index")
-    public Message getOrders() {
+    public Message getOrders() throws Exception {
         Map<String, Object> map = new HashMap<>();
         map.put("orders", "order1");
+        String value = null;
+
+        if (value == null) {
+            throw new Exception();
+        }
 
         return Message.ok(map);
+    }
+
+
+    @GetMapping("/get-feign-orders-time-out")
+    public Message getFeignOrdersTimeout() {
+        try {
+            // 模拟休眠2s钟
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        return Message.ok();
     }
 }
