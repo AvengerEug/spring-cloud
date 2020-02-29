@@ -4,6 +4,8 @@ import com.eugene.sumarry.customize.wfw.model.Message;
 import com.eugene.sumarry.customize.wfw.user.service.feign.OrderFeignClient;
 import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
 import com.netflix.hystrix.contrib.javanica.annotation.HystrixProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +20,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 @RestController
 @RequestMapping("/v1/users")
 public class UserController {
+
+    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
     private AtomicInteger circuitBreakerAtomic = new AtomicInteger(0);
 
@@ -58,7 +62,7 @@ public class UserController {
      * This property determines whether a circuit breaker will be used to track health and to short-circuit requests if it trips.
      *
      * Default Value	true
-     * Default Property	hystrix.command.default.circuitBreaker.enabled  ***** ---> 这个配置是配置在yml文件中的，供全局使用。*****
+     * Default Property	hystrix.command.default.circuitBreaker.enabled  ***** ---> 这个配置是配置在yml文件中的，供 全局使用。*****
      * Instance Property	hystrix.command.HystrixCommandKey.circuitBreaker.enabled
      * How to Set Instance Default
      * HystrixCommandProperties.Setter()
@@ -81,6 +85,39 @@ public class UserController {
             e.printStackTrace();
         }
 
+        return Message.ok();
+    }
+
+
+    /**
+     * 设置这个api限流，若有2个线程进来了，后面的线程则进入降级方法
+     * 若线程使用数未达到2，那么则继续进入此api
+     *
+     * 具体配置参考此模块的application.yml
+     *
+     * hystrix.threadpool.limiting.coreSize
+     * 其中配置中的limiting就和下面 threadPoolKey = "limiting"相对应，
+     * hystrix.command.limiting.execution.isolation.thread.timeoutInMilliseconds
+     * 和下面的commandKey = "limiting"相对应
+     *
+     * 最终会
+     * 从配置文件中来填充
+     *
+     * @return
+     */
+    @HystrixCommand(
+            fallbackMethod = "getUsersFallBack",
+            commandKey = "limiting",
+            threadPoolKey = "limiting"
+    )
+    @GetMapping("/index-limiting")
+    public Message getUsersLimiting() {
+        logger.info("Requesting /index-limiting api");
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         return Message.ok();
     }
 
@@ -138,6 +175,40 @@ public class UserController {
     @GetMapping("/get-feign-orders")
     public Message getFeignOrders() {
         return orderFeignClient.getOrders();
+    }
+
+    /**
+     * HystrixCommand默认是超过一秒就采取方法降级的策略
+     * 因为为orderFeignClient配置了fallback属性，所以走的是实现了OrderFeignClient接口的类
+     * 的方法
+     *
+     * 因为配置了超时属性为3s
+     *
+     * 而因为集群的原因，order实例线程是睡眠了2s
+     * order2实例线程是睡眠了5秒。
+     * 因为自定义负载均衡的原因。若请求到order2实例，那么就会走降级的方法
+     * 若是请求到order1实例，那么走的就是正常逻辑，只不过要等2秒后才会响应
+     *
+     * 但这里会出现一个问题, 若请求到order2实例，因为hystrix中对应USER-SERVICE模块中设置的超时时间10s
+     * 而order2实例睡眠了5s。而ribbon设置的重试时间为x秒，x秒 < 10秒
+     * 所以ribbon会重新调用api进行重试，导致实例被负载均衡实例被调用了两次，
+     * 再下一次请求就又到了order1实例中去了
+     *
+     * 所以现在想将ribbon的重试机制给去掉，
+     * 看了下官网的描述:
+     * https://cloud.spring.io/spring-cloud-static/Finchley.SR4/single/spring-cloud.html#retrying-failed-requests
+     * 大概就是从两个方面下手:
+     * 1. 配置spring.cloud.loadbalancer.retry.enabled=false
+     * 2. 去除spring-retry依赖
+     *
+     * 第一个方面这么做了，可是无效
+     * 第二个方面还没找到到底是哪个模块依赖了spring-retry模块。无法使用exclusions标签进行移除
+     *
+     * @return
+     */
+    @GetMapping("/get-feign-orders-time-out")
+    public Message getFeignOrdersTimeout() {
+        return orderFeignClient.getFeignOrdersTimeout();
     }
 
 

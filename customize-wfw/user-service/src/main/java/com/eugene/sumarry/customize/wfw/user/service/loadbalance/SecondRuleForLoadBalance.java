@@ -99,7 +99,7 @@ public class SecondRuleForLoadBalance implements IRule {
         }
 
         // 如果重置过的server 集合长度和被调用的服务数量一致，那么所有服务的轮询都结束了，重新调用
-        if (resetServers.size() == serverCalledInfos.size()) {
+        if (resetServers.size() != 0 && resetServers.size() == serverCalledInfos.size()) {
             resetResetServers();
             return choose(loadBalancer, key);
         }
