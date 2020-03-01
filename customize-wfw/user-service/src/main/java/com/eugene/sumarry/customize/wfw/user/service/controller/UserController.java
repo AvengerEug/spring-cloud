@@ -15,6 +15,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @RestController
@@ -78,9 +79,11 @@ public class UserController {
     )
     @GetMapping("/index-time-out")
     public Message getUsersTimeout() {
+        int sleepSecond = new Random().nextInt(5);
 
+        logger.info("Sleep time is {} second", sleepSecond);
         try {
-            Thread.sleep(3000);
+            Thread.sleep(sleepSecond * 1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -122,21 +125,19 @@ public class UserController {
     }
 
     /**
-     * 测试此方法时，在5秒内请求5次，会失败。
+     * 测试断路器:
+     *
+     * 测试此方法时，在5秒内请求5次，全失败，此时断路器就会打开(半开状态)
      * 那么就会走getUsersFallBack方法。
+     *
+     * 当一直刷新到circuitBreakerAtomic > 10时，且达到了断路器偶尔将请求分配到
+     * 此方法的条件时，api就会返回正常了。
      *
      * 走了getUsersFallBack方法后。
      * 因为要考虑到服务有可能是因为网络问题没有得到及时响应而打开了断路器的开关，
-     * 所以在断路器开关开启后，后面的请求可能会偶尔(这个偶尔可以配置)将请求移动到此方法中，若此方法
+     * 所以在断路器开关开启后，后面的请求可能会偶尔(这个'偶尔'可以配置)将请求移动到此方法中，若此方法
      * 是通的，则将返回值响应出去，否则走的还是getUsersFallBack方法的逻辑
      *
-     * 因为配置了对6取余。 所以前面5次请求(连续6s内)都不满足条件，最终执行失败。 导致此api被熔断了。
-     * 因为熔断后可能会偶尔将请求又发送到api中，所以此时满足了余数等于0的情况，所以浏览器能响应成功
-     *
-     * 所以最终的情况就是: 在浏览器6s内连续请求http://localhost:5000/v1/users/index-circuit-breaker
-     * 前面5次走的都是getUsersFallBack方法。 因为抛异常了，此时是因为方法降级的原因
-     * 当执行到第6次的时候，因为被熔断了，所以走得还是getUsersFallBack方法。但其中会偶尔请求到此api，
-     * 此时是满足余数等于0的情况，所以浏览器会偶尔出现请求成功
      *
      * @return
      * @throws Exception
@@ -153,7 +154,11 @@ public class UserController {
     @GetMapping("/index-circuit-breaker")
     public Message getUsersCircuitBreaker() throws Exception {
 
-        if (circuitBreakerAtomic.incrementAndGet() % 6 != 0) {
+        circuitBreakerAtomic.incrementAndGet();
+
+        logger.info("circuitBreakerAtomic value is {}", circuitBreakerAtomic);
+
+        if (circuitBreakerAtomic.get() < 10) {
             throw new Exception();
         }
 
@@ -179,7 +184,7 @@ public class UserController {
 
     /**
      * HystrixCommand默认是超过一秒就采取方法降级的策略
-     * 因为为orderFeignClient配置了fallback属性，所以走的是实现了OrderFeignClient接口的类
+     * 因为orderFeignClient配置了fallback属性，所以走的是实现了OrderFeignClient接口的类(降级类)
      * 的方法
      *
      * 因为配置了超时属性为3s
@@ -189,10 +194,11 @@ public class UserController {
      * 因为自定义负载均衡的原因。若请求到order2实例，那么就会走降级的方法
      * 若是请求到order1实例，那么走的就是正常逻辑，只不过要等2秒后才会响应
      *
-     * 但这里会出现一个问题, 若请求到order2实例，因为hystrix中对应USER-SERVICE模块中设置的超时时间10s
-     * 而order2实例睡眠了5s。而ribbon设置的重试时间为x秒，x秒 < 10秒
-     * 所以ribbon会重新调用api进行重试，导致实例被负载均衡实例被调用了两次，
-     * 再下一次请求就又到了order1实例中去了
+     * 但这里会出现一个问题, 若请求到order2实例，因为hystrix中对应ORDER-SERVICE模块
+     * 的feign的getFeignOrdersTimeout方法设置的超时时间5s
+     * 而order2实例睡眠了5s。而ribbon默认设置的重试时间为1秒，1秒 < 10秒
+     * 所以ribbon会重新调用api进行重试，导致负载均衡实例算法被调用了两次，
+     * 如果再发一次请求就又到了order1实例中去了
      *
      * 所以现在想将ribbon的重试机制给去掉，
      * 看了下官网的描述:
@@ -202,7 +208,18 @@ public class UserController {
      * 2. 去除spring-retry依赖
      *
      * 第一个方面这么做了，可是无效
+     *   -> 原因是spring cloud 2.x以后的版本此配置都无效了
      * 第二个方面还没找到到底是哪个模块依赖了spring-retry模块。无法使用exclusions标签进行移除
+     *   -> 待确认
+     *
+     * 最终的解办法是，将ribbon api重试机制的时间设置成比hystrix还要大，这样的话就相当于重试机制失效了
+     * 假设hystrix设置的超时时间为10s，
+     * 假设ribbon设置的重试时间为5s。那么在5s到达后，ribbon认为此api不需要走降级方法。所以它会进行重试
+     * (重新请求一次。)
+     * 假设riibon设置的重试时间为11s。那么ribbon永远不会做重试操作，因为在10s的时候，hystrix已经走了
+     * 降级方法了。
+     *
+     *
      *
      * @return
      */

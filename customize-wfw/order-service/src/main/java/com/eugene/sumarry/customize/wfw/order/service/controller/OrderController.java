@@ -28,6 +28,12 @@ public class OrderController {
 
     @GetMapping("/get-feign-orders-time-out")
     public Message getFeignOrdersTimeout() {
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
         return Message.ok();
     }
 }

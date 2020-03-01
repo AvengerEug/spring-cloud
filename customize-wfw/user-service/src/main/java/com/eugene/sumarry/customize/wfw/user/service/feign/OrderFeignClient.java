@@ -1,6 +1,8 @@
 package com.eugene.sumarry.customize.wfw.user.service.feign;
 
 import com.eugene.sumarry.customize.wfw.model.Message;
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixProperty;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 

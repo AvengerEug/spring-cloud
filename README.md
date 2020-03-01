@@ -241,3 +241,214 @@
     注意: 方法降级和超时监听都是做到客户端的，为什么呢？因为我作为请求方我才能知道这个请求超过多少秒是我不能接受的，然后再请求对方降级的api即可。
      
    ```
+   
+3. 案例
+
+   * 测试前提:
+
+     ```
+     启动eureka、订单两个服务(order-service, order-service-2), 商品两个服务(goods-service, goods-service-2)、用户服务(user-service)
+     ```
+
+     
+
+   * 3.1 方法降级demo
+
+     
+
+     ```java
+     
+     /**
+     1. 浏览器访问localhost:5000/v1/users/get-feign-orders
+     2. 此api内部使用的是feign调用，且订单服务做了集群(order-service服务中的api抛出了异常，order-service-2服务中的api正常返回)。所以会走负载均衡，又因为订单服务使用的是自定义的负载均衡算法。
+     所以当请求到order-service-2服务中的api时，会正常响应。当请求到order-service服务中的api时，则会走降级方法(getFeignOrdersFallBack), 降级方法的返回值要一致
+     **/
+     @HystrixCommand(fallbackMethod = "getFeignOrdersFallBack")
+     @GetMapping("/get-feign-orders")
+     public Message getFeignOrders() {
+         return orderFeignClient.getOrders();
+     }
+     
+     public Message getFeignOrdersFallBack() {
+         return Message.error("系统正在维护中，请稍后再试");
+     }
+     ```
+
+     
+
+   * 3.2 服务熔断demo
+
+     ```java
+     /**
+      1. 浏览器输入: http://localhost:5000/v1/users/index-circuit-breaker
+      2. 设置了熔断机制:
+            当这个api5s内失败了5次请求，那么就会走降级方法。
+         此api中设计了一个算法，当circuitBreakerAtomic变量的值大于10时，则返回正确结果，否则抛出异
+         常。该异常会被hystrix捕获，最终走降级方法。而因为配置了5s内失败5次也会走降级方法。
+         所以我们为了区分是因为抛出异常而走的降级方法还是因为熔断走的降级方法。
+         我们最好使用jemet工具或者postman工具模拟1000个请求。然后根据打印circuitBreakerAtomic的值的
+         log信息来区分，总共有多少个线程进入了这个api。从而验证了断路器是否起作用
+     **/
+     @HystrixCommand(
+     	fallbackMethod = "getUsersFallBack",
+     	commandProperties = {
+     		@HystrixProperty(name = "circuitBreaker.sleepWindowInMilliseconds", value = "5000"),
+              @HystrixProperty(name = "circuitBreaker.requestVolumeThreshold", value = "5")
+          }
+     )
+     @GetMapping("/index-circuit-breaker")
+     public Message getUsersCircuitBreaker() throws Exception {
+     
+         circuitBreakerAtomic.incrementAndGet();
+     
+         logger.info("circuitBreakerAtomic value is {}", circuitBreakerAtomic);
+     
+         if (circuitBreakerAtomic.get() < 10) {
+             throw new Exception();
+         }
+     
+         return Message.ok();
+     }
+     
+     public Message getUsersFallBack() {
+         return Message.error("系统正在维护中，请稍后再试 -- getUsersFallBack");
+     }
+     ```
+
+   * 3.3 服务限流demo
+
+     ```java
+     /**
+       1. 浏览器输入: localhost:5000/v1/users/index-limiting
+       2. 此api添加了限流的相关配置
+          commandKey="limiting"和threadPoolKey="limiting"分别对应了下述yml文件中command和threadpool
+          节点下的limiting。最终会将yml配置文件中值加载进来
+          
+          大致配置了该api线程池大小为2，且hystrix的超时时间达到了20s才走降级方法
+          因为api中线程休眠了10s，所以测试很简单，直接使用jemet或postman请求三次，能发现第三个请求直接
+          走了降级方法。
+     **/
+     @HystrixCommand(
+             fallbackMethod = "getUsersFallBack",
+             commandKey = "limiting",
+             threadPoolKey = "limiting"
+     )
+     @GetMapping("/index-limiting")
+     public Message getUsersLimiting() {
+         logger.info("Requesting /index-limiting api");
+         try {
+             Thread.sleep(10000);
+         } catch (InterruptedException e) {
+             e.printStackTrace();
+         }
+         return Message.ok();
+     }
+     
+     public Message getUsersFallBack() {
+         return Message.error("系统正在维护中，请稍后再试 -- getUsersFallBack");
+     }
+     ```
+
+     ```yml
+     # application.yml
+     hystrix:
+       threadpool:
+         limiting:
+           coreSize: 2
+       command:
+         limiting:
+           execution:
+             isolation:
+               thread:
+                 timeoutInMilliseconds: 20000
+     ```
+
+   * 3.4 请求监听超时demo
+
+     ```java
+     /**
+       1. 浏览器输入 localhost:5000/v1/users/index-time-out
+       2. 此api添加了请求超时相关的配置
+          具体为超时时间为3s，若超过了3s则走降级方法。
+          此方法很简单，随机生产一个小于5的整数，所以此方法会根据随机后的数据来决定是否走降级方法
+     */
+     @HystrixCommand(
+     	fallbackMethod = "getUsersFallBack",
+     	commandProperties = {
+     		@HystrixProperty(name = "execution.isolation.thread.timeoutInMilliseconds", value = "3000")
+          }
+     )
+     @GetMapping("/index-time-out")
+     public Message getUsersTimeout() {
+     	int sleepSecond = new Random().nextInt(5);
+     
+          logger.info("Sleep time is {} second", sleepSecond);
+          try {
+          	Thread.sleep(sleepSecond * 1000);
+          } catch (InterruptedException e) {
+              e.printStackTrace();
+          }
+     
+         return Message.ok();
+     }
+     
+     public Message getUsersFallBack() {
+         return Message.error("系统正在维护中，请稍后再试 -- getUsersFallBack");
+     }
+     
+     ```
+
+   * 3.5 ribbon组件提供的feign与hystrix集成 
+
+     * 添加实现了feignClient接口的类作为降级处理类, eg: 项目中的`OrderFeignClientHystrix`类
+
+     * 将降级处理类添加至feignClient中。eg: `OrderFeignClient`类的`@FeignClient`注解的**fallback**属性
+
+     * 配置hystrix属性，这里提供单独为某个方法的配置
+
+       ```yml
+       hystrix:
+         command:
+           # 为配置到具体feign的某个方法，可以使用default作为全局配置
+           # 这里有个知识点: HystrixCommandKey  ->  
+           # 当@HystrixCommand注解添加到方法时，这个HystrixCommandKey就是方法名
+           # 当HystrixCommandKey为default时。就是所有hystrix共享的
+         	"OrderFeignClient#getFeignOrdersTimeout()":
+             execution:
+               isolation:
+                 thread:
+                   timeoutInMilliseconds: 3000
+       ```
+
+     * 启动feign的hystrix功能
+
+       ```yml
+       feign:
+         hystrix:
+           enabled: true
+       ```
+
+     * 延长ribbon的重试机制(若不延长，那么在hystrix的可允许超时时长内，ribbon(也就是feign)会启动它的重试机制，会再请求一次(这个一次也是可以配置的)，配置这个是有原因的，后面会说明)
+
+       ```yml
+       feign:
+         client:
+           # 看源码得知: config是一个map的数据结构，default为key
+           config:
+             # 服务名, 配置在@FeignClient注解中的服务名，当然有可以使用default。这样的话所有的feign都会共用这个配置
+             ORDER-SERVICE:
+               connectTimeout: 11000
+               readTimeout: 11000
+       ```
+
+     * 进行测试: 拿UserControll中的getFeignOrdersTimeout() api来测试
+
+       ```markdown
+       1. 浏览器输入: localhost:5000/v1/users/get-feign-orders-time-out
+       2. 此api内部会使用feign调用order服务，而order服务有两个实例，且使用的自定义负载均衡算法(每个实例都会请求到两次后再轮询到下一个实例)。因为自定义负载均衡算法的原因，为了让它生效，所以我延长了ribbon的重试配置。让它大于hystrix的超时时间，这样重试机制就不会生效了(其实可以直接关闭重试机制的，这块我还没找到解决方案，所以就先这样处理了)。`order-service`服务中的api休眠了2s。order-service-2服务中的api休眠了5s。因为hystrix配置了超时时间为3s。所以当请求到达order-servie-2服务时，会走降级方法(降级处理类对应的方法名的逻辑)。当请求到达order-service服务时，因为休眠了2s，所以会正常返回
+       ```
+
+       
+
+     
+

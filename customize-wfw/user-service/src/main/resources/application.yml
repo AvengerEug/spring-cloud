@@ -3,6 +3,7 @@ spring:
     # 应用的名称，eureka会把这个名称当成实例名称，若实例名称都一致，则eureka会当作集群处理
     # 以后的服务调用，是通过这个服务名来调用的
     name: user-service
+  # spring cloud2.x版本 这个配置会失效
   cloud:
     loadbalancer:
       retry:
@@ -28,18 +29,31 @@ eureka:
 feign:
   hystrix:
     enabled: true
+  # 配置feign默认的配置
+  client:
+    # 看源码得知: config是一个map的数据结构，default为key，还需要确定可不可以为指定的feign配置
+    config:
+      ORDER-SERVICE:
+        connectTimeout: 11000
+        readTimeout: 11000
+
+# Hystrix中的HystrixCommandKey：一般就是方法名
 
 hystrix:
   threadpool:
     limiting: # --> 这是这个配置的key, 在使用@HystrixCommand注解时，若指定了commandKey = "limiting", 那么就会用这里面的属性去配置
       coreSize: 2 # 默认是10
   command:
-    # 可以填写服务名，表示这个服务的超时时间为10s
     default:
       execution:
         isolation:
           thread:
-            timeoutInMilliseconds: 10000
+            timeoutInMilliseconds: 4000
+    "OrderFeignClient#getFeignOrdersTimeout()":
+      execution:
+        isolation:
+          thread:
+            timeoutInMilliseconds: 3000
     limiting:
       execution:
         isolation:
