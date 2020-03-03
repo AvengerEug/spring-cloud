@@ -1,3 +1,6 @@
+# server:
+  # port: 5000
+
 spring:
   application:
     # 应用的名称，eureka会把这个名称当成实例名称，若实例名称都一致，则eureka会当作集群处理
