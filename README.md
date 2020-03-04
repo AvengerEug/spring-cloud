@@ -475,5 +475,29 @@
    
    ```
 
-   
 
+4. zuul工作流程:
+
+   ```
+   本质: 本质上也是一个spring mvc的web项目
+   入口: DispatcherServlet.java的doService方法
+   流程:
+      1. 拿到request
+      2. 根据request拿到handler
+         -> 遍历所有的handlerMappings, 其中只有ZuulHandlerMapping能够返回handler，所以调用它的getHandler方法，但是它没有实现这个方法，所以最终执行的父类AbstractHandlerMapping的getHandler方法，当在执行lookupHandler方法时，因为自己(ZuulHandlerMapping)有实现lookupHandler方法，所以又跳到自己的lookupHandler方法了。在此方法中做了三件事情: 
+         1. 到ThreadLocal中拿请求上下文(RequestContext, zuul将tomcat传来的request存入了RequestContext对象中)来决定是否是内部转发操作。
+         2. 拿到zuul配置的路由并将它们注册到handler中: 相当于spring mvc中的映射关系与controller相关联，会将配置的所有路由映射到ZuulController.  eg: /v*/users/**  -> ZuulController
+         3. 调用父类的lookupHandler方法查找真正的handler(ZuulController -> 实现了org.springframework.web.servlet.mvc.controller接口)
+      3. 根据handler找handlerAdapter(SimpleControllerHandlerAdapter, )
+      4. 调用handlerAdapter的handle方法
+         -> 最终调用到ZuulControll中的handleRequestInternal方法。ZuulController没有做啥事，空壳方法，主要调用了父类ServletWrappingController的handleRequestInternal方法。在父类ServletWrappingController中，维护了一个ZuulServlet，最终会调用ZuulServlet的service方法。在ZuulServlet的service方法中主要做了4件事。
+         1. 将当前的request，response信息放入ThreadLocal中
+         2. preRoute: 预处理路由, 将sType=pre的预处理路由的过滤器执行一遍
+         3. route: 路由，将sType=pre的路由过滤器执行一遍
+         4. postRoute: 将sType=post的路由过滤器执行一遍
+         
+         上述的处理路由过程都可以从thread中拿到request和response，其中在第三件事的过程中，会执行到一个叫RibbonRoutingFilter的过滤器，其中在此过滤其中会对request进行真正的请求，最终会将threadLocal中的response进行填充，zuul将会根据这个response进行响应，所以所谓的404、500等状态码的reponse都是在此过滤器中执行的
+      5. 至此，zuul的路由功能完成！
+   ```
+
+   
