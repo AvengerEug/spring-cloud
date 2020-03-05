@@ -493,11 +493,32 @@
          -> 最终调用到ZuulControll中的handleRequestInternal方法。ZuulController没有做啥事，空壳方法，主要调用了父类ServletWrappingController的handleRequestInternal方法。在父类ServletWrappingController中，维护了一个ZuulServlet，最终会调用ZuulServlet的service方法。在ZuulServlet的service方法中主要做了4件事。
          1. 将当前的request，response信息放入ThreadLocal中
          2. preRoute: 预处理路由, 将sType=pre的预处理路由的过滤器执行一遍
-         3. route: 路由，将sType=pre的路由过滤器执行一遍
+         3. route: 路由，将sType=route的路由过滤器执行一遍
          4. postRoute: 将sType=post的路由过滤器执行一遍
          
          上述的处理路由过程都可以从thread中拿到request和response，其中在第三件事的过程中，会执行到一个叫RibbonRoutingFilter的过滤器，其中在此过滤其中会对request进行真正的请求，最终会将threadLocal中的response进行填充，zuul将会根据这个response进行响应，所以所谓的404、500等状态码的reponse都是在此过滤器中执行的
       5. 至此，zuul的路由功能完成！
    ```
 
-   
+5. zuul的过滤器(核心): 
+
+   * zuul的过滤器分为四种: error、post、pre、route(在FilterConstants.java文件中可见)
+
+   * 每种类型的过滤器的处理时机如下图所示:
+
+     ![过滤器处理时机图](https://github.com/AvengerEug/spring-cloud/blob/develop/zuul-filter-processor.png)
+
+   * 自定义过滤器实现步骤: 参考官网: [https://cloud.spring.io/spring-cloud-static/Finchley.SR4/single/spring-cloud.html#_custom_zuul_filter_examples](https://cloud.spring.io/spring-cloud-static/Finchley.SR4/single/spring-cloud.html#_custom_zuul_filter_examples)
+
+   * 需要注意的点:
+
+     ```
+     每个类型的过滤器都有一个默认的，而且它们都有一个对应的order的值。
+     在添加自定义过滤器时，肯定是有业务需求的，比如pre类型的过滤器可以验证权限等等。
+     但是因为有order属性的存在，所以我们必须要确认自己写的过滤器的执行顺序是怎样的。要确认这个问题的话，我们必须要确认每个类型的默认过滤器的作用是什么。
+     比如pre类型的默认过滤器是: PreDecorationFilter.java ，这个过滤器就是处理request，为请求转发到具体的服务做准备，内部会将一些信息(要跳转的服务id、url等等)。假设我们有需求要处理这个request的内容，那么就必须把自定义的过滤器的执行顺序放在PreDecorationFilter的后面。
+     
+     具体规则是： order的值越小，越先执行
+     ```
+
+     
