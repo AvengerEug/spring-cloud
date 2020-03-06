@@ -612,3 +612,13 @@
      2. 添加@Component注解加入到spring容器中，与官网的** you can provide a fallback response by creating a bean of type `FallbackProvider`**相对应
 
      3. zuul的容错器完成, 测试时, 可以将路由的那个微服务给停止，这样就会请求超时(默认是与hystrix结合，hystrix默认超时1s)，就会走容错器
+   
+7. zuul集群:
+
+   ```shell
+   # 请参考此项目的 zuul-cluster分支，或直接clone此分支代码
+   git clone https://github.com/AvengerEug/spring-cloud.git -b zuul-cluster
+   
+   ```
+
+   
