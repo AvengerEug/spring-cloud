@@ -521,4 +521,94 @@
      具体规则是： order的值越小，越先执行
      ```
 
-     
+6. zuul的容错
+
+   * 官方文档建议做法: [https://cloud.spring.io/spring-cloud-static/Finchley.SR4/single/spring-cloud.html#hystrix-fallbacks-for-routes](https://cloud.spring.io/spring-cloud-static/Finchley.SR4/single/spring-cloud.html#hystrix-fallbacks-for-routes)
+
+     1. 步骤一: 创建一个类型为**FallbackProvider**的bean
+
+        ```java
+        class UserServiceFallbackProvider implements FallbackProvider {
+        
+            /**
+             配置在zuul中路由的service-id(源码: org.springframework.cloud.netflix.zuul.filters.route.support.AbstractRibbonCommand#getFallbackResponse方法
+                 protected ClientHttpResponse getFallbackResponse() {
+                    Throwable cause = getFailedExecutionException();
+                    cause = cause == null ? getExecutionException() : cause;
+                    // 是根据serviceId
+                    return zuulFallbackProvider.fallbackResponse(context.getServiceId(), cause);
+                }
+             )
+             若返回的是一个"*" 或 null => 那么则表示针对所有的路由都使用此容错器
+            */
+            @Override
+            public String getRoute() {
+                return "users-service";
+            }
+        
+            /**
+              回退方法，当zuul将请求转发给微服务发生了错误时。
+              会执行此方法响应一个ClientHttpResponse出去
+            */
+            @Override
+            public ClientHttpResponse fallbackResponse(String route, final Throwable cause) {
+                if (cause instanceof HystrixTimeoutException) {
+                    return response(HttpStatus.GATEWAY_TIMEOUT);
+                } else {
+                    return response(HttpStatus.INTERNAL_SERVER_ERROR);
+                }
+            }
+        
+            private ClientHttpResponse response(final HttpStatus status) {
+                // 返回一个ClientHttpResponse, 其中要实现部分函数
+                return new ClientHttpResponse() {
+                    /**
+                      响应的状态码对象
+                    */
+                    @Override
+                    public HttpStatus getStatusCode() throws IOException {
+                        return status;
+                    }
+        
+                    /**
+                      响应的状态码的值, eg: 200, 401, 500, 502
+                    */
+                    @Override
+                    public int getRawStatusCode() throws IOException {
+                        return status.value();
+                    }
+        
+                    @Override
+                    public String getStatusText() throws IOException {
+                        return status.getReasonPhrase();
+                    }
+        
+                    @Override
+                    public void close() {
+                    }
+        
+                    /**
+                      响应的具体内容
+                    */
+                    @Override
+                    public InputStream getBody() throws IOException {
+                        return new ByteArrayInputStream("fallback".getBytes());
+                    }
+        
+                    /**
+                      支持对response的header做处理
+                    */
+                    @Override
+                    public HttpHeaders getHeaders() {
+                        HttpHeaders headers = new HttpHeaders();
+                        headers.setContentType(MediaType.APPLICATION_JSON);
+                        return headers;
+                    }
+                };
+            }
+        }
+        ```
+
+     2. 添加@Component注解加入到spring容器中，与官网的** you can provide a fallback response by creating a bean of type `FallbackProvider`**相对应
+
+     3. zuul的容错器完成, 测试时, 可以将路由的那个微服务给停止，这样就会请求超时(默认是与hystrix结合，hystrix默认超时1s)，就会走容错器
