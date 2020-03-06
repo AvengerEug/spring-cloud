@@ -1,18 +1,18 @@
 server:
-  port: 9000
+  port: 9002
 
 spring:
   application:
     # 应用的名称，eureka会把这个名称当成实例名称，若实例名称都一致，则eureka会当作集群处理
     # 以后的服务调用，是通过这个服务名来调用的
-    name: zuul-client
+    name: zuul-service
 
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8000/eureka
   instance:
-    instance-id: zuul-client
+    instance-id: zuul-service-2
     # 配置显示ip地址
     prefer-ip-address: true
     #设置客户端发送心跳给eureka服务器的时间间隔，默认30s
@@ -28,13 +28,11 @@ eureka:
 
 # debug: true
 
-# 此zuul作为客户端，将请求分发给zuul的服务端, 当请求localhost:9000/api/v1/users/index时，会将
-# /v1/users/index请求转发给zuul集群中的一个实例，默认使用的是ribbon的轮询算法
 zuul:
   routes:
     users:
-      path: /**
-      serviceId: zuul-service
+      path: /v*/users/**
+      serviceId: user-service
       # 一定要加这个配置, 默认为true，若不加，则会在SimpleRouteLocator类的getRoute方法获取route时将前面的/去掉
       # (getRoute方法会将第一个*前面的所有东西变成/)
       # 最终的route对象的pathUrl会变成  v1/users/**
@@ -43,5 +41,8 @@ zuul:
       # 将路由获取之后，在跟请求中的uri进行关系映射(如上述的v1/users/** 或者 /**)
       # 参考博客链接: https://www.jianshu.com/p/8e78c0716365
       strip-prefix: false
+    order:
+      path: /v*/orders/**
+      serviceId: order-service
+      strip-prefix: false
   ignored-services: '*' # 忽略所有服务名的路由
-  prefix: /api

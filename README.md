@@ -612,3 +612,21 @@
      2. 添加@Component注解加入到spring容器中，与官网的** you can provide a fallback response by creating a bean of type `FallbackProvider`**相对应
 
      3. zuul的容错器完成, 测试时, 可以将路由的那个微服务给停止，这样就会请求超时(默认是与hystrix结合，hystrix默认超时1s)，就会走容错器
+
+7. zuul集群
+
+   * zuul集群的方式有很多，比如使用zuul + eureka相互做集群、使用nginx做集群
+
+   * zuul + eureka做集群
+
+     ```
+     思路: 因为zuul默认集成了ribbon, 所以ribbon的负载均衡它也支持。所以可以添加三个zuul服务，一个zuul作为客户端(所有的用户请求进这个zuul), 剩下的两个zuul作为服务端，由作为客户端的zuul负载均衡转发给这两个实例。eg: 当前项目的zuul-cluster分支就是此种实现方案
+     ```
+
+   * zuul + nginx 做集群
+
+     ```
+     思路: 添加两个zuul服务，作为服务端，由nginx做负载均衡转发给这两个实例
+     ```
+
+     
