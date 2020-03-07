@@ -1,0 +1,7 @@
+eureka:
+  # 添加eureka 客户端服务注册配置, 注册中心暴露这个地址进行注册，客户端就是通过此配置来关联上对应的eureka的
+  client:
+    service-url:
+      defaultZone: http://localhost:8000/eureka
+    # 服务端不注册，即当前的eureka不注册到自己身上
+    register-with-eureka: false

@@ -20,6 +20,7 @@
         <module>goods-service</module>
         <module>goods-service-2</module>
         <module>zuul</module>
+        <module>config-service</module>
     </modules>
 
     <dependencies>

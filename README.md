@@ -40,6 +40,8 @@
 |       服务名        |   端口    |
 | :-----------------: | :-------: |
 |       eureka        |   8000    |
+|        zuul         |   9000    |
+|   config-service    |   4000    |
 |    user-service     |   5000    |
 | order-service(集群) | 6001/6002 |
 | goods-service(集群) | 7001/7002 |

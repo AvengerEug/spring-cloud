@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: eureka8000
+  profiles:
+    active: local
+  cloud:
+    config:
+      uri: http://localhost:4000
+      label: develop

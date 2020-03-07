@@ -1,0 +1,13 @@
+server:
+  port: 4000
+
+spring:
+  application:
+    name: config-service # {application}
+  cloud:
+    config:
+      server:
+        git:
+          uri: https://github.com/AvengerEug/spring-cloud.git
+          search-paths: customize-wfw/configs
+      label: develop

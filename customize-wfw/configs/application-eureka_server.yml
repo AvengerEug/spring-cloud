@@ -1,0 +1,7 @@
+eureka:
+  server:
+    enable-self-preservation: false # 关闭自我保护机制
+    eviction-interval-timer-in-ms: 3000 # 设置服务的清理间隔(若有服务3s内没有发送心跳给eureka，则会移除它)，(单位毫秒: 默认是60 * 1000)
+  instance:
+    # 服务实例的名称
+    hostname: localhost

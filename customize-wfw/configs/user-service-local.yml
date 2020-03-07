@@ -1,32 +1,9 @@
+spring:
+  profiles:
+    include: eureka_server
+
 server:
   port: 5000
-
-spring:
-  application:
-    # 应用的名称，eureka会把这个名称当成实例名称，若实例名称都一致，则eureka会当作集群处理
-    # 以后的服务调用，是通过这个服务名来调用的
-    name: user-service
-  # spring cloud2.x版本 这个配置会失效
-  cloud:
-    loadbalancer:
-      retry:
-        enabled: false
-
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8000/eureka
-  instance:
-    instance-id: user-service
-    # 配置显示ip地址
-    prefer-ip-address: true
-    #设置客户端发送心跳给eureka服务器的时间间隔，默认30s
-    lease-renewal-interval-in-seconds: 1
-    # 若客户端在3s内没有发送心跳给eureka，那么就表示此客户端宕机了, 在eureka进行清理服务时就能把这个服务给剔除了
-    # 所以若将此实例关闭，那么在eureka页面中最迟在
-    # eureka.server.eviction-interval-timer-in-ms属性的值 + eureka.client.lease-expiration-duration-in-seconds的值
-    # 后能看到实例被剔除
-    lease-expiration-duration-in-seconds: 3
 
 # 开启feign的hystrix功能
 feign:
