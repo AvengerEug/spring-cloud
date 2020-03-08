@@ -1,0 +1,12 @@
+spring:
+  profiles:
+    include:
+      - eureka_client
+
+eureka:
+  instance:
+    prefer-ip-address: true # 配置显示ip地址
+    #设置客户端发送心跳给eureka服务器的时间间隔，默认30s
+    lease-renewal-interval-in-seconds: 1
+    # 若客户端在3s内没有发送心跳给eureka，那么就表示此客户端宕机了, 在eureka进行清理服务时就能把这个服务给剔除了
+    lease-expiration-duration-in-seconds: 3

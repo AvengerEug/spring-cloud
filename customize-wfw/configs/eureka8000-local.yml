@@ -3,4 +3,6 @@ server:
 
 spring:
   profiles:
-    include: eureka_server, eureka_client
+    # 平常我们用逗号来分隔配置能够能够的原因 是因为项目中存在string转list的转换器
+    include:
+      - eureka_server

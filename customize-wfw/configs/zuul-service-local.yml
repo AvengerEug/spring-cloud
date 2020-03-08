@@ -1,16 +1,14 @@
+# zuul作为路由器的坑, 其他的微服务必须要将端口配置在yml或者properties文件中，不能以java config的形式进行配置，
+# 否则zuul在找到服务名时，请求的是8080的端口，猜测是从eureka中获取的服务信息中没有包含java config的信息
 server:
   port: 9000
 
 spring:
-  application:
-    # 应用的名称，eureka会把这个名称当成实例名称，若实例名称都一致，则eureka会当作集群处理
-    # 以后的服务调用，是通过这个服务名来调用的
-    name: zuul-service
+  profiles:
+    include:
+      - eureka_client
 
 eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8000/eureka
   instance:
     instance-id: zuul-service
     # 配置显示ip地址
@@ -22,9 +20,6 @@ eureka:
     # eureka.server.eviction-interval-timer-in-ms属性的值 + eureka.client.lease-expiration-duration-in-seconds的值
     # 后能看到实例被剔除
     lease-expiration-duration-in-seconds: 3
-
-# zuul作为路由器的坑, 其他的微服务必须要将端口配置在yml或者properties文件中，不能以java config的形式进行配置，
-# 否则zuul在找到服务名时，请求的是8080的端口，猜测是从eureka中获取的服务信息中没有包含java config的信息
 
 # debug: true
 

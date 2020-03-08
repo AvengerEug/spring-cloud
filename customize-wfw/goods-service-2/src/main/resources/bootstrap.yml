@@ -1,15 +1,17 @@
+server:
+  port: 7002
+
 spring:
   application:
     # 应用的名称，eureka会把这个名称当成实例名称，若实例名称都一致，则eureka会当作集群处理
     # 以后的服务调用，是通过这个服务名来调用的
-    name: user-service
+    name: goods-service
+    active: local
   cloud:
-    # spring cloud2.x版本 这个配置会失效
-    loadbalancer:
-      retry:
-        enabled: false
     config:
       uri: http://localhost:4000
       label: develop
-  profiles:
-    active: local
+
+eureka:
+  instance:
+    instance-id: goods-service-2 # 注册到eureka的唯一实例ID

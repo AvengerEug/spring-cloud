@@ -1,6 +1,17 @@
 server:
   port: 4000
 
+
+# spring cloud config服务端设置配置文件地址: 设置为github仓库的customize-wfw/configs文件夹下
+# 其中拉取的是develop分支的代码
+# ------
+# spring cloud config客户端的配置: 需要指定从服务端拿配置的规则, 一般是: {application}-{profiles}.yml文件
+# 其中application是 spring.application.name的配置，profiles是 spring.profiles.active的配置
+# 配置完了之后，所以会到配置服务中心找对应的文件，
+# eg:
+#  客户端的spring.application.name的配置为: user-service
+#  spring.profiles.active: local
+#  那么就会从服务端找user-service-local.yml文件
 spring:
   application:
     name: config-service # {application}
