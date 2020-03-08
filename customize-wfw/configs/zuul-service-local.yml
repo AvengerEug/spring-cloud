@@ -40,4 +40,8 @@ zuul:
       path: /v*/orders/**
       serviceId: order-service
       strip-prefix: false
+    goods:
+      path: /v*/goods/**
+      serviceId: goods-service
+      strip-prefix: false
   ignored-services: '*' # 忽略所有服务名的路由
