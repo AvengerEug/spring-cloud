@@ -622,5 +622,87 @@
    git clone https://github.com/AvengerEug/spring-cloud.git -b zuul-cluster
    
    ```
-
    
+### 1.7 spring cloud 配置中心
+
+* 步骤
+
+  * 服务端
+
+    1. 添加服务端依赖
+
+    ```xml
+    <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-config-server</artifactId>
+    </dependency>
+    ```
+
+    2. 项目入口类添加@EnableConfigServer注解
+
+    3. application.yml文件添加如下配置
+
+       ```yml
+       server:
+         port: 4000
+       spring:
+         application:
+           name: config-service # {application}
+         cloud:
+           config:
+             server:
+               # 采用git作为远程仓库的方式获取配置文件
+               git:
+                 uri: https://github.com/AvengerEug/spring-cloud.git
+                 # 到指定文件夹中拿文件
+                 search-paths: customize-wfw/configs
+             # 标签
+             label: develop
+       ```
+       
+    4. 完成注册中心服务端的配置, 可以按照[spring cloud官网推荐的规则进行查看](https://cloud.spring.io/spring-cloud-static/Finchley.SR4/single/spring-cloud.html#_quick_start), 简单规则如下:
+    
+       ```yml
+       /{application}/{profile}[/{label}]
+       /{application}-{profile}.yml
+       /{label}/{application}-{profile}.yml
+       /{application}-{profile}.properties
+       /{label}/{application}-{profile}.properties
+       ```
+    
+       我们可以访问: `http://localhost:4000/develop/eureka8000-local.yml` 即访问develop分支的eureka8000-local.yml文件，此时该文件的内容会在浏览器中被渲染出来
+    
+  * 客户端配置
+  
+    1. 添加客户端依赖
+  
+       ```xml
+       <dependency>
+           <groupId>org.springframework.cloud</groupId>
+           <artifactId>spring-cloud-starter-config</artifactId>
+       </dependency>
+       ```
+  
+    2. 添加bootstrap.yml文件, 并且添加如下配置
+  
+       ```yml
+       spring:
+         application:
+           name: eureka8000
+         profiles:
+           active: local
+         cloud:
+           config:
+             uri: http://localhost:4000
+             label: develop
+       ```
+  
+       此bootstrap.yml文件的权重比application.yml文件重，若两个文件有相同属性的配置，最终会按照bootstrap.yml文件中配置生效。而此配置的含义就是会从配置中心(http://localhost:4000)去拿文件,拿哪一个文件呢？ 拿develop分支的`eureka8000-local.yml`文件, 规则就是: `{spring.application.name}-{spring.profiles.active}.yml`
+  
+  * 总结:
+  
+    spring cloud 提供的配置中心可支持远端配置，但不支持热更新。即不需要启动服务的前提下，服务能读取到更新后的配置文件。其实也可以，spring cloud提供了spring cloud bus，原理就是利用了github的webhook(钩子函数)，github在文件更新时能触发一些钩子函数，我们可以与 github做交互，当github通知更新时，再到对应的服务中去更新缓存中的配置文件(这样的话，每个服务都要做这样的事). 其实大多数分布式项目中，使用最多的配置中心是携程的`apoll`。在apoll的光环下，spring cloud提供的配置中心略微逊色。
+
+
+
+
