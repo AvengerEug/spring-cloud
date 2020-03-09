@@ -703,6 +703,33 @@
   
     spring cloud 提供的配置中心可支持远端配置，但不支持热更新。即不需要启动服务的前提下，服务能读取到更新后的配置文件。其实也可以，spring cloud提供了spring cloud bus，原理就是利用了github的webhook(钩子函数)，github在文件更新时能触发一些钩子函数，我们可以与 github做交互，当github通知更新时，再到对应的服务中去更新缓存中的配置文件(这样的话，每个服务都要做这样的事). 其实大多数分布式项目中，使用最多的配置中心是携程的`apoll`。在apoll的光环下，spring cloud提供的配置中心略微逊色。
 
+### 1.7  spring cloud  sleuth (zipkin)链路跟踪
 
+* 进入官网下载相关jar包或者docker镜像启动zipkin服务(本项目路径zipkin文件夹中存在一个zipkin的jar包，可以直接使用java -jar 启动，zipkin也是使用spring boot开发的)
 
+* 配置zipkin的客户端
+
+  1. 添加zipkin的依赖
+
+     ```xml
+     <!-- 包含了spring-cloud-starter-sleuth -->
+     <dependency>
+         <groupId>org.springframework.cloud</groupId>
+         <artifactId>spring-cloud-starter-zipkin</artifactId>
+     </dependency>
+     ```
+
+  2. 在需要对请求进行根据的微服务中添加如下配置:
+
+     ```yml
+     spring:
+       # zipkin的服务地址
+       zipkin: http://localhost:9411 # zipkin的默认端口 9411
+       sleuth:
+       	sampler:
+           # 设置链路追踪的api数量, 1.0 = 100% 即表示追踪所有的请求链路, 默认为0.1, 即只接收百分之10的请求
+           probability: 1.0
+     ```
+
+  3. 服务搭建完成，可以测试: 依次请求`config-service, eureka, user-service, order-service, order-service-2 `服务，并请求`http://localhost:5000/v1/users/get-feign-orders`api. 然后可以在zipkin首页(http://localhost:9411/zipkin)中查询出链路:
 

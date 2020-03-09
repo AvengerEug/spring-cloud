@@ -13,3 +13,9 @@ spring:
       label: develop
   profiles:
     active: local
+  zipkin:
+    base-url: http://localhost:9411
+  sleuth:
+    sampler:
+      # 设置链路追踪的api数量, 1.0 = 100% 即表示追踪所有的请求链路
+      probability: 1.0
