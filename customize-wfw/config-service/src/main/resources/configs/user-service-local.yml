@@ -1,0 +1,47 @@
+spring:
+  profiles:
+    include:
+      - eureka_client
+
+server:
+  port: 5000
+
+# 开启feign的hystrix功能
+feign:
+  hystrix:
+    enabled: true
+  # 配置feign默认的配置
+  client:
+    # 看源码得知: config是一个map的数据结构，default为key，还需要确定可不可以为指定的feign配置
+    config:
+      ORDER-SERVICE:
+        connectTimeout: 11000
+        readTimeout: 11000
+
+# Hystrix中的HystrixCommandKey：一般就是方法名
+
+hystrix:
+  threadpool:
+    limiting: # --> 这是这个配置的key, 在使用@HystrixCommand注解时，若指定了commandKey = "limiting", 那么就会用这里面的属性去配置
+      coreSize: 2 # 默认是10
+  command:
+    default:
+      execution:
+        isolation:
+          thread:
+            timeoutInMilliseconds: 4000
+    "OrderFeignClient#getFeignOrdersTimeout()":
+      execution:
+        isolation:
+          thread:
+            timeoutInMilliseconds: 3000
+    limiting:
+      execution:
+        isolation:
+          thread:
+            # timeoutInMilliseconds配置的是commandKey = "limiting"的hystrix超时时间，默认是1s
+            # 因为我在api对线程休眠了10s再返回，若不加大超时时间的话，那么就会一直走降级方法，因为
+            # 已经超过了默认的超时时间，为了测试限流。那么就需要把这个超时时间加大，看是否线程数
+            # 达到上述配置的2时进入降级方法
+            timeoutInMilliseconds: 20000
+

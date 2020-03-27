@@ -1,13 +1,13 @@
 package com.eugene.sumarry.customize.wfw.user.service.controller;
 
 import com.eugene.sumarry.customize.wfw.model.Message;
+import com.eugene.sumarry.customize.wfw.user.service.feign.GoodsFeignClient;
 import com.eugene.sumarry.customize.wfw.user.service.feign.OrderFeignClient;
 import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
 import com.netflix.hystrix.contrib.javanica.annotation.HystrixProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -41,6 +41,9 @@ public class UserController {
 
     @Autowired
     private OrderFeignClient orderFeignClient;
+
+    @Autowired
+    private GoodsFeignClient goodsFeignClient;
 
     @GetMapping("/index")
     public Message getUsers() {
@@ -243,4 +246,10 @@ public class UserController {
         return Message.ok(restTemplate.getForObject("http://" + GOODS_SERVICE_NAME +"/v1/goods/index", Object.class));
 
     }
+
+    @GetMapping("/get-feign-goods")
+    public Message getFeignGoods() {
+        return Message.ok(goodsFeignClient.getGoods());
+    }
+
 }

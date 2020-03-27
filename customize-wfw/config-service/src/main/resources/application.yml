@@ -15,10 +15,12 @@ server:
 spring:
   application:
     name: config-service # {application}
+  profiles:
+    active: native
   cloud:
     config:
       server:
-        git:
-          uri: https://github.com/AvengerEug/spring-cloud.git
-          search-paths: customize-wfw/configs
-      label: develop
+        native:
+          search-locations: classpath:/configs
+        bootstrap: true
+      #label: develop

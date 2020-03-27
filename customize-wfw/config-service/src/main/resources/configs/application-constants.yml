@@ -1,0 +1,7 @@
+customize:
+  wfw:
+    registrationCenter:
+      - name: eureka8000
+        hostname: localhost
+        port: 8000
+        url: http://${customize.wfw.registrationCenter[0].hostname}:${customize.wfw.registrationCenter[0].port}/eureka
