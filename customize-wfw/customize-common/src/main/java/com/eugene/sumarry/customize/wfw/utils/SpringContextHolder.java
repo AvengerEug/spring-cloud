@@ -12,11 +12,32 @@ public class SpringContextHolder implements ApplicationContextAware {
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        applicationContext = applicationContext;
+        this.applicationContext = applicationContext;
     }
 
     public static String getProperty(String key) {
         return applicationContext.getEnvironment().getProperty(key);
+    }
+
+
+    private static ApplicationContext getApplicationContext() {
+        return applicationContext;
+    }
+
+    public static <T> T getBean(Class<T> clazz) {
+        return getApplicationContext().getBean(clazz);
+    }
+
+    public static <T> T getBean(String name) {
+        return (T) applicationContext.getBean(name);
+    }
+
+    public static <T> T getBean(String name, Object ...args) {
+        return (T)getApplicationContext().getBean(name, args);
+    }
+
+    public static <T> T getBean(Class clz, Object ...args) {
+        return (T)getApplicationContext().getBean(clz, args);
     }
 
 }
