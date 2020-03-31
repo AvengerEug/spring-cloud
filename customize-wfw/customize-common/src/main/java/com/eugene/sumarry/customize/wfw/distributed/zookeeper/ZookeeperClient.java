@@ -26,13 +26,13 @@ public class ZookeeperClient implements InitializingBean {
         this.environment = environment;
     }
 
-
     @Override
     public void afterPropertiesSet() throws Exception {
         Class clazz = null;
         Constructor constructor = null;
         // zookeeper客户端加载顺序
         try {
+            logger.info("Try to load class {}", CURATOR_FRAMEWORK_FACTORY_CLASS);
             clazz = Class.forName(CURATOR_FRAMEWORK_FACTORY_CLASS);
             constructor = clazz.getDeclaredConstructor();
             constructor.setAccessible(true);
@@ -51,10 +51,12 @@ public class ZookeeperClient implements InitializingBean {
         } catch (ClassNotFoundException e) {
             logger.warn("Not found class {}. Try to load {}", CURATOR_FRAMEWORK_FACTORY_CLASS, ZOOKEEPER_CLIENT_CLASS);
             try {
+                logger.info("Try to load class {}", ZOOKEEPER_CLIENT_CLASS);
                 clazz = Class.forName(ZOOKEEPER_CLIENT_CLASS);
             } catch (ClassNotFoundException e1) {
                 logger.warn("Not found class {}. Try to load {}", ZOOKEEPER_CLIENT_CLASS, ZK_CLIENT_CLASS);
                 try {
+                    logger.info("Try to load class {}", ZK_CLIENT_CLASS);
                     clazz = Class.forName(ZK_CLIENT_CLASS);
                 } catch (ClassNotFoundException e2) {
                     logger.warn("Not found class {}. ", ZK_CLIENT_CLASS);
@@ -66,7 +68,9 @@ public class ZookeeperClient implements InitializingBean {
         } finally {
             if (clazz == null) {
                 logger.warn("Zookeeper client initializer failed");
+                throw new RuntimeException("Zookeeper client initializer failed");
             }
+            logger.info("Current zookeeper client is {} ", client);
         }
     }
 }
