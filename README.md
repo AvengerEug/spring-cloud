@@ -508,7 +508,7 @@
 
    * 每种类型的过滤器的处理时机如下图所示:
 
-     ![过滤器处理时机图](https://github.com/AvengerEug/spring-cloud/blob/develop/zuul-filter-processor.png)
+     ![过滤器处理时机图](./zuul-filter-processor.png)
 
    * 自定义过滤器实现步骤: 参考官网: [https://cloud.spring.io/spring-cloud-static/Finchley.SR4/single/spring-cloud.html#_custom_zuul_filter_examples](https://cloud.spring.io/spring-cloud-static/Finchley.SR4/single/spring-cloud.html#_custom_zuul_filter_examples)
 
@@ -750,6 +750,8 @@
   这也就说明了为什么eureka在集群搭建时，服务名必须要一样，而实例id可以不一样
   ```
 
-  
+* Eureka是一个开源项目，不是spring开发的，只不过springcloud把eureka封装了一层，可以无缝对接spring。Eureka作为注册中心是采用http协议来进行服务注册、服务发现、服务续约、服务剔除、服务下线等功能的。但它底层用的是**jersey**框架，是另外的一种MVC框架，它和spring mvc类似，只不过jersey是使用过滤器进行拦截，而spring mvc是通过拦截器进行拦截的。
 
+#### 1.9.1 服务注册原理
 
+* 在eureka源码中，处理http请求的控制器位于**com.netflix.eureka.resources**包下。当我们启动一个服务往eureka注册服务时，注册方会像eureka发送一个post请求，最终就会进入**com.netflix.eureka.resources.ApplicationResource#addInstance**方法进行注册。其中，它内部使用了一个叫**责任链的设计模式(定义一个接口，使用一个基类来实现核心方法，剩下的逻辑由子类去实现。最终由子类开始调用这个方法，当子类完成了对应的逻辑后，再调用父类的方法，一层层递进。这样的设计就达到了单一性，每个类只负责自己的逻辑)**来完成服务的注册。其中会校验一些参数、发布一个**EurekaInstanceRegisteredEvent**的事件，可以通知其他监听者做特定的操作，最终在**com.netflix.eureka.registry.AbstractInstanceRegistry#register**类中完成了服务的注册。其中底层使用的是ConcurrentHashMap来作为服务注册表，同时它是一个嵌套的map，key为服务名。value为一个map，内部map中的key为服务的id，value为具体服务对应的值。采用这种设计可以很方便的实现eureka的集群搭建。
